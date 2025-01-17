@@ -7,16 +7,14 @@
 ; Host and port of the Ice interface on
 ; the target Murmur server.
 
-host = mumble-server
-port = 15206
+host = 127.0.0.1
+port = 6502
 
-callback_host = tm-umo
-
-; Slicefile to use (e.g. /etc/slice/Murmur.ice),
+; Slicefile to use (e.g. /etc/slice/Murmur.ice), 
 ; if empty MuMo will load the slice file from the
 ; target server at startup.
 
-slice =
+slice = 
 
 ; Semicolon seperated list of slice include directories
 ; to consider. This is only used on legacy platforms
@@ -37,7 +35,7 @@ watchdog = 15
 ; Comma seperated list of server ids to listen on (empty for all)
 ; note that if a server isn't listed here no events for it can
 ; be received in any module
-servers =
+servers = 
 
 [modules]
 mod_dir = modules/

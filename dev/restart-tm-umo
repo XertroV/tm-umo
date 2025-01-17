@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -e
+
+docker compose down tm-umo &
+./dev/docker-build.sh
+wait
+docker compose up -d
+docker compose logs -f

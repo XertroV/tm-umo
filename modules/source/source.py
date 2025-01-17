@@ -232,13 +232,13 @@ class source(MumoModule):
     def userTransition(self, mumble_server, old, new):
         """
         Handles the transition of the user between given old and new states.
-        
+
         If no old state is available (connect, starting to play, ...) old can be
         None. If an old state is given it is assumed that it is valid.
-        
+
         If no new state is available (disconnect) new can be None. A new state
         can be either valid (playing) or invalid (not or no longer playing).
-        
+
         Depending on the previous and the new state this function performs all
         needed actions.
         """
@@ -306,7 +306,7 @@ class source(MumoModule):
                                   applySubs=False,
                                   userid=-1,
                                   group=groupname,
-                                  allow=EAT)],
+                                  allow=EAT | W | S)],
                              [], True)
 
     def setACLsForServerChannel(self, mumble_server, server_cid, game, server):
@@ -458,7 +458,7 @@ class source(MumoModule):
     def moveUser(self, mumble_server, user, target_cid=None):
         """
         Move user according to current game state.
-        
+
         This function performs all tasks of the move including creating
         channels if needed or deleting unused ones when appropriate.
         If a target_cid is given it is assumed that the channel
@@ -489,7 +489,7 @@ class source(MumoModule):
         Takes the cid of a server or team channel and checks if all
         related channels (siblings and server) are unused. If true
         the channel is unused and will be deleted.
-        
+
         Note: Assumes tree structure
         """
 
@@ -535,7 +535,7 @@ class source(MumoModule):
     def parseSourceContext(self, context):
         """
         Parse source engine context string. Returns tuple with
-        game name and server identification. Returns None for both 
+        game name and server identification. Returns None for both
         if context string is invalid.
         """
         try:
@@ -558,8 +558,8 @@ class source(MumoModule):
         """
         Parse comma separated source engine identity string key value pairs
         and return them as a dict. Returns None for invalid identity strings.
-        
-        Usage: parseSourceIndentity("universe:0;account_type:0;id:00000000;instance:0;team:0")    
+
+        Usage: parseSourceIndentity("universe:0;account_type:0;id:00000000;instance:0;team:0")
         """
         try:
             # For now all values are integers

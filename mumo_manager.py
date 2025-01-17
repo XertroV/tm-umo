@@ -199,7 +199,7 @@ class MumoManagerRemote(object):
     def __handle_context_callback(self, handler, server, action, user, target_session, target_channelid, current=None):
         """
         Small callback wrapper for context menu operations.
- 
+
         Translates the given target into the corresponding object and
         schedules a call to the actual user context menu handler which
         will be executed in the modules thread.

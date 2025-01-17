@@ -21,4 +21,5 @@ cp -r /data/modules /mumo
 cp -r /data/modules-available /mumo
 cp -r /data/modules-enabled /mumo
 
+sleep 1
 exec "$@"

@@ -31,6 +31,7 @@
 
 from config import (Config)
 
+from mumo_manager import MumoManagerRemote
 from worker import Worker
 
 
@@ -56,7 +57,7 @@ class MumoModule(Worker):
         self.log().info("Initialized")
 
     # --- Accessors
-    def manager(self):
+    def manager(self) -> 'MumoManagerRemote':
         return self.__manager
 
     def cfg(self):
@@ -75,8 +76,8 @@ class MumoModule(Worker):
     def connected(self):
         # Called once the Ice connection to the murmur server
         # is established.
-        # 
-        # All event registration should happen here 
+        #
+        # All event registration should happen here
 
         pass
 
