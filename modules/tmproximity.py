@@ -64,16 +64,30 @@ class MumbleServerMock:
     def removeUserFromGroup(self, channelid: int, session: int, group_name: str): pass
     def addUserToGroup(self, channelid: int, session: int, group_name: str): pass
 
+BAD_CONTEXT_NAME = "Context Error"
+NOT_LINKED_NAME = "Not Linked"
+NO_MAP_NAME = "No Map"
+
 class tmproximity(MumoModule):
     murmur: 'MumbleServerMock'
     channels_by_name: dict[int, str]
     channels_by_id: dict[int, str]
+    left_cid: int
+    no_map_cid: int
+    not_linked_cid: int
+    bad_context_cid: int
+    do_not_delete_cids: list[int]
 
     def __init__(self, name, manager, configuration=None):
         MumoModule.__init__(self, name, manager, configuration)
         self.murmur = manager.getMurmurModule()
         self.channels_by_name = dict()
         self.channels_by_id = dict()
+        self.left_cid = -1
+        self.no_map_cid = -1
+        self.not_linked_cid = -1
+        self.bad_context_cid = -1
+        self.do_not_delete_cids = []
 
     def connected(self):
         cfg = self.cfg()
@@ -100,7 +114,7 @@ class tmproximity(MumoModule):
         main_server: MumbleServerMock = all_servers[0]
         server_id = main_server.id()
         chans = main_server.getChannels()
-        log.debug(f"chans: {chans}")
+        log.debug(f"chans: {chans.__repr__()}")
         for chan in chans.values():
             if chan.id > 0:
                 main_server.removeChannel(chan.id)
@@ -114,6 +128,19 @@ class tmproximity(MumoModule):
             #         main_server.setChannelState(_chan)
         self.channels_by_id[0] = "left"
         self.channels_by_name["left"] = 0
+        self.left_cid = 0
+
+        self.not_linked_cid = self.create_channel(main_server, NOT_LINKED_NAME, set_acl=False)
+        self.no_map_cid = self.create_channel(main_server, NO_MAP_NAME, set_acl=False)
+        self.bad_context_cid = self.create_channel(main_server, BAD_CONTEXT_NAME, set_acl=False)
+        self.do_not_delete_cids = [self.left_cid, self.no_map_cid, self.not_linked_cid, self.bad_context_cid]
+
+
+    def okay_to_delete_channel(self, channel_id) -> bool:
+        if channel_id in self.do_not_delete_cids:
+            return False
+        return True
+
 
 
 
@@ -132,14 +159,15 @@ class tmproximity(MumoModule):
                 del self.channels_by_id[_id]
         return self.create_channel(server, ctx)
 
-    def create_channel(self, server: MumbleServerMock, ctx):
+    def create_channel(self, server: MumbleServerMock, ctx, set_acl=True) -> int:
         _id = server.addChannel(ctx, 0)
         chan = server.getChannelState(_id)
         chan.temporary = True
         server.setChannelState(chan)
         self.channels_by_id[_id] = ctx
         self.channels_by_name[ctx] = _id
-        self.set_prox_channel_acl(server, _id, ctx)
+        if set_acl:
+            self.set_prox_channel_acl(server, _id, ctx)
         return _id
 
     def set_prox_channel_acl(self, server: MumbleServerMock, channel_id, groupname: str):
@@ -162,7 +190,7 @@ class tmproximity(MumoModule):
                         [], True)
 
     def check_empty_channel(self, server: MumbleServerMock, channel_id):
-        if channel_id == 0:
+        if not self.okay_to_delete_channel(channel_id):
             return
         users = server.getUsers()
         for user in users.values():
@@ -240,6 +268,8 @@ class tmproximity(MumoModule):
 
         old_cn = oldstate.channel if oldstate else 0
 
+        # if not npc and npi:
+        #     channame =
 
         if npc and npi:
             log.debug("Updating user '%s' (%d|%d) on server %d in game %s: %s", newstate.name, newstate.session,
@@ -251,6 +281,8 @@ class tmproximity(MumoModule):
         if oli and not nli:
             log.debug("User '%s' (%d|%d) on server %d no longer linked", newstate.name, newstate.session, newstate.userid, sid)
             server.removeUserFromGroup(0, session, "linked")
+            channame = NOT_LINKED_NAME
+            newstate.channel = self.get_channel_from_ctx(server, channame)
 
         if 0 <= newstate.channel != newoldchannel:
             log.debug("Moving '%s' leaving %s to channel %s", newstate.name, old_cn, channame)
@@ -309,7 +341,7 @@ class tmproximity(MumoModule):
 
         if not update:
             self.sessions[sid][state.session] = state
-            return
+        #     return
 
         # The plugin will always prefix "TM|" to the context for the bf2 PA plugin
         # don't bother analyzing anything if it isn't there
@@ -383,9 +415,9 @@ def parse_context(context: str) -> dict:
     # server_hash|team
     parts = context.split("|")
     if len(parts) != 2:
-        return dict(ctx="left", channame="left", g="left", parts=parts)
+        return dict(ctx=context, channame=BAD_CONTEXT_NAME, g=BAD_CONTEXT_NAME, parts=parts)
     # server|team
-    name = "left" if len(parts[0]) == 0  else "|".join(parts[:2])
+    name = NO_MAP_NAME if len(parts[0]) == 0  else "|".join(parts[:2])
     # nonce = parts[2] if len(parts) > 2 else ""
     return dict(ctx=name, channame=name, g=name)
 
