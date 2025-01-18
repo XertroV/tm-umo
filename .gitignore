@@ -4,3 +4,4 @@ docker-compose.yml
 /mumo.ini
 /tm-umo-data
 /mumble-server-data/mumble-server.sqlite
+dev/upload-docker-img.sh
