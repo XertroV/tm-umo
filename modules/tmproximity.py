@@ -379,12 +379,15 @@ class tmproximity(MumoModule):
 
 
 def parse_context(context: str) -> dict:
-    # server|team|nonce
+    # need exact and matching context, should match room name
+    # server_hash|team
     parts = context.split("|")
+    if len(parts) != 2:
+        return dict(ctx="left", channame="left", g="left", parts=parts)
     # server|team
-    name = "|".join(parts[:2])
-    nonce = parts[2] if len(parts) > 2 else ""
-    return dict(ctx=name, channame=name, g=name, nonce=nonce)
+    name = "left" if len(parts[0]) == 0  else "|".join(parts[:2])
+    # nonce = parts[2] if len(parts) > 2 else ""
+    return dict(ctx=name, channame=name, g=name)
 
 def parse_identity(identity: str) -> dict:
     parts = identity.split("|")
