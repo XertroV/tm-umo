@@ -58,7 +58,7 @@ class MumbleServerMock:
     def setChannelState(self, channel: ChannelMock): pass
     def getChannelState(self, channel_id: int) -> ChannelMock: pass
     # MumoModule.ACL
-    def setACL(self, channel_id: int, acl: list): pass
+    def setACL(self, channel_id: int, acl: list, groups: list, inherit: bool): pass
     def setState(self, user: UserMock): pass
     def kickUser(self, session: int, reason: str): pass
     def removeUserFromGroup(self, channelid: int, session: int, group_name: str): pass
@@ -117,6 +117,7 @@ class tmproximity(MumoModule):
         log.debug(f"chans: {chans.__repr__()}")
         for chan in chans.values():
             if chan.id > 0:
+                log.debug(f" !! Removing channel {chan.name} with id {chan.id}")
                 main_server.removeChannel(chan.id)
             # if chan.name in self.channels_by_name:
             #     log.info(f"Removing channel {chan.name} with id {chan.id}")
@@ -126,43 +127,49 @@ class tmproximity(MumoModule):
             #         _chan = main_server.getChannelState(chan.id)
             #         _chan.temporary = True
             #         main_server.setChannelState(_chan)
+        chans = main_server.getChannels()
+        log.debug(f"chans: {chans.__repr__()}")
+
         self.channels_by_id[0] = "left"
         self.channels_by_name["left"] = 0
         self.left_cid = 0
 
-        self.not_linked_cid = self.create_channel(main_server, NOT_LINKED_NAME, set_acl=False)
-        self.no_map_cid = self.create_channel(main_server, NO_MAP_NAME, set_acl=False)
-        self.bad_context_cid = self.create_channel(main_server, BAD_CONTEXT_NAME, set_acl=False)
+        for chan in chans.values():
+            if chan.id == 0:
+                continue
+            self.channels_by_name[chan.name] = chan.id
+            self.channels_by_id[chan.id] = chan.name
+
+        self.not_linked_cid = self.get_channel_from_ctx(main_server, NOT_LINKED_NAME, set_acl=False)
+        self.no_map_cid = self.get_channel_from_ctx(main_server, NO_MAP_NAME, set_acl=False)
+        self.bad_context_cid = self.get_channel_from_ctx(main_server, BAD_CONTEXT_NAME, set_acl=False)
         self.do_not_delete_cids = [self.left_cid, self.no_map_cid, self.not_linked_cid, self.bad_context_cid]
 
 
     def okay_to_delete_channel(self, channel_id) -> bool:
-        if channel_id in self.do_not_delete_cids:
-            return False
-        return True
-
-
-
-
+        return channel_id not in self.do_not_delete_cids
 
     def disconnected(self):
         pass
 
-    def get_channel_from_ctx(self, server: MumbleServerMock, ctx):
+    def get_channel_from_ctx(self, server: MumbleServerMock, ctx, set_acl=False) -> int:
         if ctx in self.channels_by_name:
             _id = self.channels_by_name[ctx]
             try:
                 chan = server.getChannelState(_id)
-                return _id
-            except:
+                return chan.id
+            except Exception as e:
+                self.log().warning(f"Channel {_id} / {ctx} not found by name: {e}")
                 del self.channels_by_name[ctx]
                 del self.channels_by_id[_id]
-        return self.create_channel(server, ctx)
+        return self.create_channel(server, ctx, set_acl=set_acl)
 
     def create_channel(self, server: MumbleServerMock, ctx, set_acl=True) -> int:
+        log = self.log()
+        log.debug(f" !! Creating channel (set_acl={set_acl}): {ctx}")
         _id = server.addChannel(ctx, 0)
         chan = server.getChannelState(_id)
-        chan.temporary = True
+        chan.temporary = set_acl
         server.setChannelState(chan)
         self.channels_by_id[_id] = ctx
         self.channels_by_name[ctx] = _id
@@ -201,6 +208,7 @@ class tmproximity(MumoModule):
             del self.channels_by_name[channel_name]
             del self.channels_by_id[channel_id]
         try:
+            self.log().debug(f"Removing channel: {channel_id} / {channel_name}")
             server.removeChannel(channel_id)
         except:
             pass
@@ -272,9 +280,8 @@ class tmproximity(MumoModule):
         #     channame =
 
         if npc and npi:
-            log.debug("Updating user '%s' (%d|%d) on server %d in game %s: %s", newstate.name, newstate.session,
-                      newstate.userid, sid, "ng or ngcfgname", str(npi))
-
+            # log.debug("Updating user '%s' (%d|%d) on server %d in game %s: %s", newstate.name, newstate.session,
+            #           newstate.userid, sid, "ng or ngcfgname", str(npi))
             channame = f"{npc['channame']}"
             newstate.channel = self.get_channel_from_ctx(server, channame)
 
@@ -285,7 +292,7 @@ class tmproximity(MumoModule):
             newstate.channel = self.get_channel_from_ctx(server, channame)
 
         if 0 <= newstate.channel != newoldchannel:
-            log.debug("Moving '%s' leaving %s to channel %s", newstate.name, old_cn, channame)
+            log.debug("Moving '%s' leaving %s to channel %s (%s)", newstate.name, old_cn, channame, newstate.channel)
             # if ng is None:
             # else:
             #     log.debug("Moving '%s' @ %s to channel %s", newstate.name, "?", channame)
@@ -341,7 +348,7 @@ class tmproximity(MumoModule):
 
         if not update:
             self.sessions[sid][state.session] = state
-        #     return
+            return
 
         # The plugin will always prefix "TM|" to the context for the bf2 PA plugin
         # don't bother analyzing anything if it isn't there
